@@ -1,0 +1,4 @@
+TEST ACCOUNTS: (email - password)
+
+admin2@example.com - adminpass
+test@email.om - test

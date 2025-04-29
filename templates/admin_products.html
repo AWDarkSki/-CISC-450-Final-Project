@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin - Product Management</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <h1>Admin Panel - Product Management</h1>
+
+    <h2>Add New Product</h2>
+    <form action="/admin/products" method="POST">
+        <label>Name: <input type="text" name="name" required></label><br>
+        <label>Price: <input type="number" step="0.01" name="price" required></label><br>
+        <label>Description: <textarea name="description"></textarea></label><br>
+        <label>Size:
+            <select name="size" required>
+                <option value="XS">XS</option>
+                <option value="S">S</option>
+                <option value="M">M</option>
+                <option value="L">L</option>
+                <option value="XL">XL</option>
+                <option value="XXL">XXL</option>
+            </select>
+        </label><br>
+        <label>Category:
+            <select name="category" required>
+                <option value="T-Shirts">T-Shirts</option>
+                <option value="Hoodies">Hoodies</option>
+                <option value="Jackets">Jackets</option>
+                <option value="Accessories">Accessories</option>
+            </select>
+        </label><br>
+        <label>Image URL: <input type="text" name="image_url"></label><br>
+        <label>Stock Quantity: <input type="number" name="stock_quantity" required></label><br>
+        <label>Conventions (comma-separated IDs): <input type="text" name="convention_ids"></label><br>
+        <button type="submit">Add Product</button>
+    </form>
+
+    <hr>
+
+    <h2>Existing Products</h2>
+    <table border="1">
+        <thead>
+            <tr>
+                <th>Image</th>
+                <th>Name</th>
+                <th>Price</th>
+                <th>Size</th>
+                <th>Category</th>
+                <th>Conventions</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for product in products %}
+            <tr>
+                <td><img src="{{ product.image_url }}" alt="{{ product.name }}" width="60"></td>
+                <td>{{ product.name }}</td>
+                <td>${{ product.price }}</td>
+                <td>{{ product.size }}</td>
+                <td>{{ product.category }}</td>
+                <td>{{ ', '.join(product['conventions']) if product['conventions'] else 'None' }}</td>
+                <td>
+                    <form action="/admin/products/{{ product.product_id }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this product?');">
+                        <input type="hidden" name="_method" value="DELETE">
+                        <button type="submit">Delete</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <p><a href="/">Return to Catalogue</a></p>
+</body>
+</html>

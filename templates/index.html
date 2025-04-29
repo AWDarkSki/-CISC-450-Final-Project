@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Convention Clothing Catalogue</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <h1>Convention Clothing Catalogue</h1>
+
+    <!-- Display user login status -->
+    {% if current_user.is_authenticated %}
+        <p>Welcome, {{ current_user.email }}! <a href="{{ url_for('logout') }}">Logout</a></p>
+    {% else %}
+        <p><a href="{{ url_for('login') }}">Login</a> | <a href="{{ url_for('register') }}">Register</a></p>
+    {% endif %}
+
+    <!-- Search and Filters -->
+    <select id="category-filter">
+        <option value="all">All Categories</option>
+        <option value="T-Shirts">T-Shirts</option>
+        <option value="Hoodies">Hoodies</option>
+        <option value="Outerwear">Outerwear</option>
+        <option value="Pants">Pants</option>
+        <option value="Accessories">Accessories</option>
+        <option value="Costumes">Costumes</option>
+        <option value="Merchandise">Merchandise</option>
+    </select>
+
+    <select id="size-filter">
+        <option value="all">All Sizes</option>
+        <option value="XS">XS</option>
+        <option value="S">S</option>
+        <option value="M">M</option>
+        <option value="L">L</option>
+        <option value="XL">XL</option>
+        <option value="XXL">XXL</option>
+        <option value="One Size">One Size</option>
+    </select>
+
+    <input type="text" id="search-bar" placeholder="Search products...">
+
+    <!-- Product Table -->
+    <table id="data-table"></table>
+
+    <!-- Product Detail Section -->
+    <div id="product-detail" style="display:none; border:1px solid #ccc; padding:10px; margin-top:20px;">
+        <h2 id="detail-name"></h2>
+        <img id="detail-image" src="" alt="" style="max-width:200px;"><br>
+        <p><strong>Description:</strong> <span id="detail-description"></span></p>
+        <p><strong>Price:</strong> $<span id="detail-price"></span></p>
+        <p><strong>Category:</strong> <span id="detail-category"></span></p>
+        <p><strong>Size:</strong> <span id="detail-size"></span></p>
+        <p><strong>Stock:</strong> <span id="detail-stock"></span></p>
+        <p><strong>Conventions:</strong> <span id="detail-conventions"></span></p>
+        <button onclick="closeDetail()">Close</button>
+    </div>
+
+    <script src="/static/js/index.js"></script>
+</body>
+</html>
