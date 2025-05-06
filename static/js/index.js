@@ -16,7 +16,6 @@ function filterProducts() {
         });
 }
 
-
 function displayProducts(data) {
     const table = document.getElementById('data-table');
     table.innerHTML = '';
@@ -25,35 +24,12 @@ function displayProducts(data) {
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td><img src="${product.image_url}" alt="${product.name}" width="50"></td>
-            <td><a href="#" onclick="showProductDetail(${product.product_id}, '${product.name}', '${product.image_url}', '${product.description}', ${product.price}, '${product.category}', '${product.size}', ${product.stock_quantity})">${product.name}</a></td>
-            <td>${product.price}</td>
+            <td><a href="#" onclick="showProductDetail(${product.product_id}, '${escapeHtml(product.name)}', '${escapeHtml(product.image_url)}', '${escapeHtml(product.description)}', ${product.price}, '${escapeHtml(product.category)}', '${escapeHtml(product.size)}', ${product.stock_quantity})">${escapeHtml(product.name)}</a></td>
+            <td>$${product.price.toFixed(2)}</td>
             <td><button onclick="addToWishlist(${product.product_id})">Add to Wishlist</button></td>
         `;
         table.appendChild(tr);
     });
-}
-
-
-function viewProduct(productId) {
-    fetch(`/product/${productId}`)
-        .then(response => response.json())
-        .then(product => {
-            if (product.error) return;
-
-            document.getElementById('product-detail').style.display = 'block';
-            document.getElementById('detail-name').textContent = product.name;
-            document.getElementById('detail-image').src = product.image_url;
-            document.getElementById('detail-image').alt = product.name;
-            document.getElementById('detail-description').textContent = product.description;
-            document.getElementById('detail-price').textContent = product.price;
-            document.getElementById('detail-category').textContent = product.category;
-            document.getElementById('detail-size').textContent = product.size;
-            document.getElementById('detail-stock').textContent = product.stock_quantity;
-        });
-}
-
-function closeDetail() {
-    document.getElementById('product-detail').style.display = 'none';
 }
 
 function showProductDetail(id, name, image, description, price, category, size, stock) {
@@ -65,7 +41,6 @@ function showProductDetail(id, name, image, description, price, category, size, 
     document.getElementById('detail-size').textContent = size;
     document.getElementById('detail-stock').textContent = stock;
 
-    // Fetch conventions for this product
     fetch(`/product/${id}/conventions`)
         .then(response => response.json())
         .then(conventions => {
@@ -74,34 +49,51 @@ function showProductDetail(id, name, image, description, price, category, size, 
         });
 
     document.getElementById('product-detail').style.display = 'block';
+    document.getElementById('modal-overlay').style.display = 'block';
 }
 
 function closeDetail() {
     document.getElementById('product-detail').style.display = 'none';
+    document.getElementById('modal-overlay').style.display = 'none';
 }
-
 
 function addToWishlist(productId) {
     fetch(`/wishlist/add/${productId}`, { method: 'POST' })
-        .then(() => alert('Added to wishlist!')); // Optional: confirmation
+        .then(() => alert('Added to wishlist!'));
 }
 
 function loadConventions() {
-        fetch('/conventions')
-            .then(response => response.json())
-            .then(conventions => {
-                const select = document.getElementById('convention-filter');
-                conventions.forEach(name => {
-                    const option = document.createElement('option');
-                    option.value = name;
-                    option.textContent = name;
-                    select.appendChild(option);
-                });
+    fetch('/conventions')
+        .then(response => response.json())
+        .then(conventions => {
+            const select = document.getElementById('convention-filter');
+            conventions.forEach(name => {
+                const option = document.createElement('option');
+                option.value = name;
+                option.textContent = name;
+                select.appendChild(option);
             });
-    }
+        });
+}
 
-    // Call this after DOM loads
-    window.addEventListener('DOMContentLoaded', () => {
-        loadConventions();
-        filterProducts(); // optional: load initial products
-    });
+// Prevent XSS by escaping injected HTML strings
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Close modal if clicking outside of it
+window.addEventListener('click', (event) => {
+    const modal = document.getElementById('product-detail');
+    const overlay = document.getElementById('modal-overlay');
+    if (event.target === overlay) {
+        closeDetail();
+    }
+});
+
+// Initialize
+window.addEventListener('DOMContentLoaded', () => {
+    loadConventions();
+    filterProducts(); // load initial product list
+});

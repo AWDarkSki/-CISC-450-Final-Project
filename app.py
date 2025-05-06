@@ -357,6 +357,51 @@ def edit_product(product_id):
 
     return render_template('edit_product.html', product=product_dict)
 
+@app.route('/admin/conventions', methods=['GET', 'POST'])
+@login_required
+def manage_conventions():
+    if current_user.role != 'admin':
+        return "Access denied", 403
+
+    conn = sqlite3.connect('convention_clothing_catalogue.db')
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+
+    if request.method == 'POST':
+        name = request.form['name']
+        date_start = request.form['date_start']
+        date_end = request.form['date_end']
+        location = request.form['location']
+
+        cursor.execute("""
+            INSERT INTO Conventions (name, date_start, date_end, location)
+            VALUES (?, ?, ?, ?)
+        """, (name, date_start, date_end, location))
+        conn.commit()
+
+    cursor.execute("SELECT * FROM Conventions ORDER BY date_start")
+    conventions = cursor.fetchall()
+    conn.close()
+
+    return render_template('admin_conventions.html', conventions=conventions)
+
+@app.route('/admin/conventions/delete/<int:convention_id>', methods=['POST'])
+@login_required
+def delete_convention(convention_id):
+    if current_user.role != 'admin':
+        return "Access denied", 403
+
+    conn = sqlite3.connect('convention_clothing_catalogue.db')
+    cursor = conn.cursor()
+
+    # Remove links first to maintain foreign key integrity
+    cursor.execute("DELETE FROM Product_Convention WHERE convention_id = ?", (convention_id,))
+    cursor.execute("DELETE FROM Conventions WHERE convention_id = ?", (convention_id,))
+    conn.commit()
+    conn.close()
+
+    return redirect(url_for('manage_conventions'))
+
 
 # Run the app
 if __name__ == '__main__':
