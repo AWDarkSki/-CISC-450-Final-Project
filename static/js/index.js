@@ -1,18 +1,21 @@
 document.getElementById('search-bar').addEventListener('input', filterProducts);
 document.getElementById('category-filter').addEventListener('change', filterProducts);
 document.getElementById('size-filter').addEventListener('change', filterProducts);
+document.getElementById('convention-filter').addEventListener('change', filterProducts);
 
 function filterProducts() {
     const category = document.getElementById('category-filter').value;
     const size = document.getElementById('size-filter').value;
     const search = document.getElementById('search-bar').value;
+    const convention = document.getElementById('convention-filter').value;
 
-    fetch(`/data?category=${category}&size=${size}&search=${search}`)
+    fetch(`/data?category=${category}&size=${size}&search=${encodeURIComponent(search)}&convention=${encodeURIComponent(convention)}`)
         .then(response => response.json())
         .then(data => {
             displayProducts(data);
         });
 }
+
 
 function displayProducts(data) {
     const table = document.getElementById('data-table');
@@ -82,3 +85,23 @@ function addToWishlist(productId) {
     fetch(`/wishlist/add/${productId}`, { method: 'POST' })
         .then(() => alert('Added to wishlist!')); // Optional: confirmation
 }
+
+function loadConventions() {
+        fetch('/conventions')
+            .then(response => response.json())
+            .then(conventions => {
+                const select = document.getElementById('convention-filter');
+                conventions.forEach(name => {
+                    const option = document.createElement('option');
+                    option.value = name;
+                    option.textContent = name;
+                    select.appendChild(option);
+                });
+            });
+    }
+
+    // Call this after DOM loads
+    window.addEventListener('DOMContentLoaded', () => {
+        loadConventions();
+        filterProducts(); // optional: load initial products
+    });

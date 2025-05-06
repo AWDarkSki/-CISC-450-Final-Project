@@ -86,27 +86,39 @@ def logout():
 def index():
     return render_template('index.html')
 
-# Route for fetching product data with filtering
 @app.route('/data')
 def data():
     category = request.args.get('category', 'all')
     size = request.args.get('size', 'all')
     search = request.args.get('search', '').lower()
+    convention = request.args.get('convention', 'all')
 
-    query = "SELECT * FROM Products WHERE 1=1"
+    query = """
+        SELECT p.*
+        FROM Products p
+        LEFT JOIN Product_Convention pc ON p.product_id = pc.product_id
+        LEFT JOIN Conventions c ON pc.convention_id = c.convention_id
+        WHERE 1=1
+    """
     params = []
 
     if category != 'all':
-        query += " AND category = ?"
+        query += " AND p.category = ?"
         params.append(category)
 
     if size != 'all':
-        query += " AND size = ?"
+        query += " AND p.size = ?"
         params.append(size)
 
     if search:
-        query += " AND (name LIKE ? OR description LIKE ?)"
+        query += " AND (p.name LIKE ? OR p.description LIKE ?)"
         params.extend([f"%{search}%", f"%{search}%"])
+
+    if convention != 'all':
+        query += " AND c.name = ?"
+        params.append(convention)
+
+    query += " GROUP BY p.product_id"
 
     try:
         conn = sqlite3.connect('convention_clothing_catalogue.db')
@@ -119,6 +131,7 @@ def data():
         return jsonify([dict(product) for product in products])
     except sqlite3.Error as e:
         return jsonify({"error": str(e)}), 500
+
 
 @app.route('/wishlist/add/<int:product_id>', methods=['POST'])
 @login_required
@@ -295,6 +308,18 @@ def delete_from_wishlist(product_id):
     conn.close()
 
     return redirect(url_for('view_wishlist'))
+
+@app.route('/conventions')
+def get_conventions():
+    conn = sqlite3.connect('convention_clothing_catalogue.db')
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT DISTINCT name FROM Conventions ORDER BY name")
+    conventions = [row['name'] for row in cursor.fetchall()]
+    conn.close()
+
+    return jsonify(conventions)
 
 
 # Run the app
