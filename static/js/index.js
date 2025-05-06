@@ -79,5 +79,6 @@ function closeDetail() {
 
 
 function addToWishlist(productId) {
-    fetch(`/wishlist/${productId}`, { method: 'POST' });
+    fetch(`/wishlist/add/${productId}`, { method: 'POST' })
+        .then(() => alert('Added to wishlist!')); // Optional: confirmation
 }

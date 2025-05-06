@@ -120,21 +120,30 @@ def data():
     except sqlite3.Error as e:
         return jsonify({"error": str(e)}), 500
 
-# Route to add a product to the wishlist
-@app.route('/wishlist/<int:product_id>', methods=['POST'])
-def add_wishlist(product_id):
-    user_id = session.get('user_id', 1)  # Get the user ID from session or authentication
+@app.route('/wishlist/add/<int:product_id>', methods=['POST'])
+@login_required
+def add_to_wishlist(product_id):
+    user_id = current_user.id
+    conn = sqlite3.connect('convention_clothing_catalogue.db')
+    cursor = conn.cursor()
 
-    try:
-        conn = sqlite3.connect('convention_clothing_catalogue.db')
-        cursor = conn.cursor()
-        cursor.execute("INSERT INTO Wishlists (user_id, product_id) VALUES (?, ?)", (user_id, product_id))
-        conn.commit()
+    # Check if already in wishlist
+    cursor.execute("SELECT 1 FROM Wishlists WHERE user_id = ? AND product_id = ?", (user_id, product_id))
+    exists = cursor.fetchone()
+
+    if exists:
         conn.close()
+        # Redirect back with a message or silently ignore
+        return redirect(url_for('view_wishlist'))  # or back to product page
 
-        return jsonify({"message": "Product added to wishlist!"})
-    except sqlite3.Error as e:
-        return jsonify({"error": str(e)}), 500
+    # Add to wishlist if not already present
+    cursor.execute("INSERT INTO Wishlists (user_id, product_id) VALUES (?, ?)", (user_id, product_id))
+    conn.commit()
+    conn.close()
+
+    return redirect(url_for('view_wishlist'))
+
+
 
 @app.route('/admin/products', methods=['GET', 'POST'])
 @login_required
@@ -218,21 +227,6 @@ def product_detail(product_id):
     except sqlite3.Error as e:
         return jsonify({"error": str(e)}), 500
 
-@app.route('/favorites')
-@login_required
-def favorites():
-    # Only allow logged-in users to access favorites
-    user_id = current_user.id
-
-    conn = sqlite3.connect('convention_clothing_catalogue.db')
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM Favorites WHERE user_id = ?", (user_id,))
-    favorites = cursor.fetchall()
-    conn.close()
-
-    return render_template('favorites.html', favorites=favorites)
-
-
 # In app.py
 @app.route('/create_admin')
 def create_admin():
@@ -266,6 +260,41 @@ def get_product_conventions(product_id):
     conn.close()
 
     return jsonify(conventions)
+
+
+@app.route('/wishlist')
+@login_required
+def view_wishlist():
+    user_id = current_user.id
+    conn = sqlite3.connect('convention_clothing_catalogue.db')
+    conn.row_factory = sqlite3.Row  # Enable dict-like row access
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        SELECT Products.product_id, Products.name, Products.description, Products.price, 
+               Products.image_url, Products.size, Products.category
+        FROM Products
+        INNER JOIN Wishlists ON Products.product_id = Wishlists.product_id
+        WHERE Wishlists.user_id = ?
+    ''', (user_id,))
+
+    wishlist_items = cursor.fetchall()
+    conn.close()
+
+    return render_template('wishlist.html', wishlist_items=wishlist_items)
+
+
+@app.route('/wishlist/delete/<int:product_id>', methods=['POST'])
+@login_required
+def delete_from_wishlist(product_id):
+    user_id = current_user.id
+    conn = sqlite3.connect('convention_clothing_catalogue.db')
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM Wishlists WHERE user_id = ? AND product_id = ?", (user_id, product_id))
+    conn.commit()
+    conn.close()
+
+    return redirect(url_for('view_wishlist'))
 
 
 # Run the app
