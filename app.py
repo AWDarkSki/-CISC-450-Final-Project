@@ -321,6 +321,42 @@ def get_conventions():
 
     return jsonify(conventions)
 
+@app.route('/admin/products/edit/<int:product_id>', methods=['GET', 'POST'])
+@login_required
+def edit_product(product_id):
+    conn = sqlite3.connect('convention_clothing_catalogue.db')
+    cursor = conn.cursor()
+
+    if request.method == 'POST':
+        name = request.form['name']
+        description = request.form['description']
+        price = float(request.form['price'])
+
+        cursor.execute('''
+            UPDATE products SET name = ?, description = ?, price = ?
+            WHERE product_id = ?
+        ''', (name, description, price, product_id))
+        conn.commit()
+        conn.close()
+        return redirect(url_for('admin_products'))
+
+    # GET: load product data
+    cursor.execute('SELECT * FROM products WHERE product_id = ?', (product_id,))
+    product = cursor.fetchone()
+    conn.close()
+
+    if not product:
+        return 'Product not found', 404
+
+    product_dict = {
+        'product_id': product[0],
+        'name': product[1],
+        'description': product[2],
+        'price': product[3]
+    }
+
+    return render_template('edit_product.html', product=product_dict)
+
 
 # Run the app
 if __name__ == '__main__':
