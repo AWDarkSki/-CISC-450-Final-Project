@@ -1,0 +1,48 @@
+<head>
+    <title>Edit Conventions</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+
+<h1>Manage Conventions</h1>
+
+<form method="POST">
+    <label>Name:</label>
+    <input type="text" name="name" required>
+
+    <label>Start Date:</label>
+    <input type="date" name="date_start" required>
+
+    <label>End Date:</label>
+    <input type="date" name="date_end" required>
+
+    <label>Location:</label>
+    <input type="text" name="location">
+
+    <button type="submit">Add Convention</button>
+</form>
+
+<h2>Existing Conventions</h2>
+<table>
+    <thead>
+        <tr><th>Name</th><th>Start</th><th>End</th><th>Location</th><th>Action</th></tr>
+    </thead>
+    <tbody>
+        {% for c in conventions %}
+        <tr>
+            <td>{{ c.name }}</td>
+            <td>{{ c.date_start }}</td>
+            <td>{{ c.date_end }}</td>
+            <td>{{ c.location }}</td>
+            <td>
+                <form method="POST" action="{{ url_for('delete_convention', convention_id=c.convention_id) }}">
+                    <button type="submit">Delete</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<a href="{{ url_for('admin_products') }}" style="padding: 8px 12px; background-color: #007BFF; color: white; text-decoration: none; border-radius: 4px;">
+    ← Return to Admin Dashboard
+</a>

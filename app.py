@@ -2,6 +2,9 @@ from flask import Flask, request, jsonify, render_template, redirect, url_for, s
 from flask_login import LoginManager, login_user, login_required, logout_user, UserMixin, current_user
 import sqlite3
 from werkzeug.security import generate_password_hash, check_password_hash
+from dotenv import load_dotenv
+import os
+from flask_wtf import CSRFProtect
 
 app = Flask(__name__)
 
@@ -10,7 +13,15 @@ login_manager.init_app(app)
 login_manager.login_view = 'login'
 
 # Secret key for session (make sure to change it in production)
-app.secret_key = 'your-secret-key'
+load_dotenv()
+app.secret_key = os.getenv('SECRET_KEY')
+
+
+app.config.update(
+    SESSION_COOKIE_SECURE=True,   # Ensure cookies are only sent over HTTPS
+    SESSION_COOKIE_HTTPONLY=True, # Prevent JavaScript access to session cookie
+    SESSION_COOKIE_SAMESITE='Lax' # Protect against CSRF via third-party sites
+)
 
 class User(UserMixin):
     def __init__(self, user_id, email, role):
@@ -86,27 +97,39 @@ def logout():
 def index():
     return render_template('index.html')
 
-# Route for fetching product data with filtering
 @app.route('/data')
 def data():
     category = request.args.get('category', 'all')
     size = request.args.get('size', 'all')
     search = request.args.get('search', '').lower()
+    convention = request.args.get('convention', 'all')
 
-    query = "SELECT * FROM Products WHERE 1=1"
+    query = """
+        SELECT p.*
+        FROM Products p
+        LEFT JOIN Product_Convention pc ON p.product_id = pc.product_id
+        LEFT JOIN Conventions c ON pc.convention_id = c.convention_id
+        WHERE 1=1
+    """
     params = []
 
     if category != 'all':
-        query += " AND category = ?"
+        query += " AND p.category = ?"
         params.append(category)
 
     if size != 'all':
-        query += " AND size = ?"
+        query += " AND p.size = ?"
         params.append(size)
 
     if search:
-        query += " AND (name LIKE ? OR description LIKE ?)"
+        query += " AND (p.name LIKE ? OR p.description LIKE ?)"
         params.extend([f"%{search}%", f"%{search}%"])
+
+    if convention != 'all':
+        query += " AND c.name = ?"
+        params.append(convention)
+
+    query += " GROUP BY p.product_id"
 
     try:
         conn = sqlite3.connect('convention_clothing_catalogue.db')
@@ -120,21 +143,31 @@ def data():
     except sqlite3.Error as e:
         return jsonify({"error": str(e)}), 500
 
-# Route to add a product to the wishlist
-@app.route('/wishlist/<int:product_id>', methods=['POST'])
-def add_wishlist(product_id):
-    user_id = session.get('user_id', 1)  # Get the user ID from session or authentication
 
-    try:
-        conn = sqlite3.connect('convention_clothing_catalogue.db')
-        cursor = conn.cursor()
-        cursor.execute("INSERT INTO Wishlists (user_id, product_id) VALUES (?, ?)", (user_id, product_id))
-        conn.commit()
+@app.route('/wishlist/add/<int:product_id>', methods=['POST'])
+@login_required
+def add_to_wishlist(product_id):
+    user_id = current_user.id
+    conn = sqlite3.connect('convention_clothing_catalogue.db')
+    cursor = conn.cursor()
+
+    # Check if already in wishlist
+    cursor.execute("SELECT 1 FROM Wishlists WHERE user_id = ? AND product_id = ?", (user_id, product_id))
+    exists = cursor.fetchone()
+
+    if exists:
         conn.close()
+        # Redirect back with a message or silently ignore
+        return redirect(url_for('view_wishlist'))  # or back to product page
 
-        return jsonify({"message": "Product added to wishlist!"})
-    except sqlite3.Error as e:
-        return jsonify({"error": str(e)}), 500
+    # Add to wishlist if not already present
+    cursor.execute("INSERT INTO Wishlists (user_id, product_id) VALUES (?, ?)", (user_id, product_id))
+    conn.commit()
+    conn.close()
+
+    return redirect(url_for('view_wishlist'))
+
+
 
 @app.route('/admin/products', methods=['GET', 'POST'])
 @login_required
@@ -218,21 +251,6 @@ def product_detail(product_id):
     except sqlite3.Error as e:
         return jsonify({"error": str(e)}), 500
 
-@app.route('/favorites')
-@login_required
-def favorites():
-    # Only allow logged-in users to access favorites
-    user_id = current_user.id
-
-    conn = sqlite3.connect('convention_clothing_catalogue.db')
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM Favorites WHERE user_id = ?", (user_id,))
-    favorites = cursor.fetchall()
-    conn.close()
-
-    return render_template('favorites.html', favorites=favorites)
-
-
 # In app.py
 @app.route('/create_admin')
 def create_admin():
@@ -266,6 +284,137 @@ def get_product_conventions(product_id):
     conn.close()
 
     return jsonify(conventions)
+
+
+@app.route('/wishlist')
+@login_required
+def view_wishlist():
+    user_id = current_user.id
+    conn = sqlite3.connect('convention_clothing_catalogue.db')
+    conn.row_factory = sqlite3.Row  # Enable dict-like row access
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        SELECT Products.product_id, Products.name, Products.description, Products.price, 
+               Products.image_url, Products.size, Products.category
+        FROM Products
+        INNER JOIN Wishlists ON Products.product_id = Wishlists.product_id
+        WHERE Wishlists.user_id = ?
+    ''', (user_id,))
+
+    wishlist_items = cursor.fetchall()
+    conn.close()
+
+    return render_template('wishlist.html', wishlist_items=wishlist_items)
+
+
+@app.route('/wishlist/delete/<int:product_id>', methods=['POST'])
+@login_required
+def delete_from_wishlist(product_id):
+    user_id = current_user.id
+    conn = sqlite3.connect('convention_clothing_catalogue.db')
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM Wishlists WHERE user_id = ? AND product_id = ?", (user_id, product_id))
+    conn.commit()
+    conn.close()
+
+    return redirect(url_for('view_wishlist'))
+
+@app.route('/conventions')
+def get_conventions():
+    conn = sqlite3.connect('convention_clothing_catalogue.db')
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT DISTINCT name FROM Conventions ORDER BY name")
+    conventions = [row['name'] for row in cursor.fetchall()]
+    conn.close()
+
+    return jsonify(conventions)
+
+@app.route('/admin/products/edit/<int:product_id>', methods=['GET', 'POST'])
+@login_required
+def edit_product(product_id):
+    if current_user.role != 'admin':
+        return "Access denied", 403
+
+    conn = sqlite3.connect('convention_clothing_catalogue.db')
+    cursor = conn.cursor()
+
+    if request.method == 'POST':
+        name = request.form['name']
+        description = request.form['description']
+        price = float(request.form['price'])
+
+        cursor.execute('''
+            UPDATE products SET name = ?, description = ?, price = ?
+            WHERE product_id = ?
+        ''', (name, description, price, product_id))
+        conn.commit()
+        conn.close()
+        return redirect(url_for('admin_products'))
+
+    # GET: load product data
+    cursor.execute('SELECT * FROM products WHERE product_id = ?', (product_id,))
+    product = cursor.fetchone()
+    conn.close()
+
+    if not product:
+        return 'Product not found', 404
+
+    product_dict = {
+        'product_id': product[0],
+        'name': product[1],
+        'description': product[2],
+        'price': product[3]
+    }
+
+    return render_template('edit_product.html', product=product_dict)
+
+@app.route('/admin/conventions', methods=['GET', 'POST'])
+@login_required
+def manage_conventions():
+    if current_user.role != 'admin':
+        return "Access denied", 403
+
+    conn = sqlite3.connect('convention_clothing_catalogue.db')
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+
+    if request.method == 'POST':
+        name = request.form['name']
+        date_start = request.form['date_start']
+        date_end = request.form['date_end']
+        location = request.form['location']
+
+        cursor.execute("""
+            INSERT INTO Conventions (name, date_start, date_end, location)
+            VALUES (?, ?, ?, ?)
+        """, (name, date_start, date_end, location))
+        conn.commit()
+
+    cursor.execute("SELECT * FROM Conventions ORDER BY date_start")
+    conventions = cursor.fetchall()
+    conn.close()
+
+    return render_template('admin_conventions.html', conventions=conventions)
+
+@app.route('/admin/conventions/delete/<int:convention_id>', methods=['POST'])
+@login_required
+def delete_convention(convention_id):
+    if current_user.role != 'admin':
+        return "Access denied", 403
+
+    conn = sqlite3.connect('convention_clothing_catalogue.db')
+    cursor = conn.cursor()
+
+    # Remove links first to maintain foreign key integrity
+    cursor.execute("DELETE FROM Product_Convention WHERE convention_id = ?", (convention_id,))
+    cursor.execute("DELETE FROM Conventions WHERE convention_id = ?", (convention_id,))
+    conn.commit()
+    conn.close()
+
+    return redirect(url_for('manage_conventions'))
 
 
 # Run the app

@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Your Wishlist</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <h1>Your Wishlist</h1>
+
+    {% if wishlist_items %}
+    <table border="1">
+        <thead>
+            <tr>
+                <th>Image</th>
+                <th>Name</th>
+                <th>Price</th>
+                <th>Size</th>
+                <th>Category</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for product in wishlist_items %}
+            <tr>
+                <td><img src="{{ product['image_url'] }}" alt="{{ product['name'] }}" width="60"></td>
+                <td>{{ product['name'] }}</td>
+                <td>${{ product['price'] }}</td>
+                <td>{{ product['size'] }}</td>
+                <td>{{ product['category'] }}</td>
+                <td>
+                    <form method="POST" action="{{ url_for('delete_from_wishlist', product_id=product['product_id']) }}">
+                        <button type="submit">Remove from Wishlist</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p>You have no items in your wishlist.</p>
+    {% endif %}
+
+    <a href="/" style="padding: 8px 12px; background-color: #007BFF; color: white; text-decoration: none; border-radius: 4px;">
+    ← Return to Catalogue
+</a>
+</body>
+</html>
