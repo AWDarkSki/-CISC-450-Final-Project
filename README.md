@@ -9,7 +9,7 @@ For Users
 
     Advanced Filtering: Search and filter by category (e.g., T-shirts, hoodies), size, or brand.
 
-    Product Details: Access detailed views including images, descriptions, pricing, and available sizes.
+    Product Details: Access detailed views including descriptions, pricing, and available sizes.
 
     Favorites/Wish List: Save items to a personal list for quick reference or future purchases.
 
