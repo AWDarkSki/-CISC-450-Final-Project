@@ -5,29 +5,33 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from dotenv import load_dotenv
 import os
 
+# Initialize the Flask application
 app = Flask(__name__)
 
+# Set up the login manager
 login_manager = LoginManager()
 login_manager.init_app(app)
-login_manager.login_view = 'login'
+login_manager.login_view = 'login'  # Redirect to login page if not authenticated
 
 # Secret key for session (make sure to change it in production)
 load_dotenv()
 app.secret_key = os.getenv('SECRET_KEY')
 
-
+# Security configurations for cookies
 app.config.update(
     SESSION_COOKIE_SECURE=True,   # Ensure cookies are only sent over HTTPS
     SESSION_COOKIE_HTTPONLY=True, # Prevent JavaScript access to session cookie
     SESSION_COOKIE_SAMESITE='Lax' # Protect against CSRF via third-party sites
 )
 
+# Define a User class that integrates with Flask-Login
 class User(UserMixin):
     def __init__(self, user_id, email, role):
         self.id = user_id
         self.email = email
         self.role = role
 
+# Define how to load a user from the session using user_id
 @login_manager.user_loader
 def load_user(user_id):
     conn = sqlite3.connect('convention_clothing_catalogue.db')
@@ -39,14 +43,17 @@ def load_user(user_id):
         return User(*row)
     return None
 
+# User registration route
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
+        # Get form data and hash the password
         email = request.form['email']
         password = generate_password_hash(request.form['password'])
         first_name = request.form['first_name']
         last_name = request.form['last_name']
 
+        # Insert new user into the database
         conn = sqlite3.connect('convention_clothing_catalogue.db')
         cursor = conn.cursor()
         try:
@@ -64,18 +71,21 @@ def register():
 
     return render_template('register.html')
 
+# User login route
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
         email = request.form['email']
         password = request.form['password']
 
+        # Fetch user from database
         conn = sqlite3.connect('convention_clothing_catalogue.db')
         cursor = conn.cursor()
         cursor.execute("SELECT user_id, password_hash, role FROM Users WHERE email = ?", (email,))
         user = cursor.fetchone()
         conn.close()
 
+        # Verify password and log in the user
         if user and check_password_hash(user[1], password):
             user_obj = User(user_id=user[0], email=email, role=user[2])
             login_user(user_obj)
@@ -85,6 +95,7 @@ def login():
 
     return render_template('login.html')
 
+# Logout route
 @app.route('/logout')
 @login_required
 def logout():
@@ -96,6 +107,7 @@ def logout():
 def index():
     return render_template('index.html')
 
+# API endpoint for retrieving product data with filtering
 @app.route('/data')
 def data():
     category = request.args.get('category', 'all')
@@ -142,7 +154,7 @@ def data():
     except sqlite3.Error as e:
         return jsonify({"error": str(e)}), 500
 
-
+# Add a product to user's wishlist
 @app.route('/wishlist/add/<int:product_id>', methods=['POST'])
 @login_required
 def add_to_wishlist(product_id):
@@ -166,8 +178,7 @@ def add_to_wishlist(product_id):
 
     return redirect(url_for('view_wishlist'))
 
-
-
+# Admin panel for managing products
 @app.route('/admin/products', methods=['GET', 'POST'])
 @login_required
 def admin_products():
@@ -179,6 +190,7 @@ def admin_products():
     cursor = conn.cursor()
 
     if request.method == 'POST':
+        # Retrieve form data for new product
         name = request.form['name']
         price = request.form['price']
         description = request.form.get('description')
@@ -188,6 +200,7 @@ def admin_products():
         stock_quantity = request.form['stock_quantity']
         convention_ids = request.form.get('convention_ids', '')
 
+        # Insert product into database
         cursor.execute("""
             INSERT INTO Products (name, price, description, size, category, image_url, stock_quantity)
             VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -219,6 +232,7 @@ def admin_products():
     conn.close()
     return render_template('admin_products.html', products=product_list)
 
+# Delete a product (admin only)
 @app.route('/admin/products/delete/<int:product_id>', methods=['POST'])
 @login_required
 def delete_product(product_id):
@@ -233,6 +247,7 @@ def delete_product(product_id):
 
     return redirect(url_for('admin_products'))
 
+# Get product details by ID
 @app.route('/product/<int:product_id>')
 def product_detail(product_id):
     try:
@@ -250,7 +265,7 @@ def product_detail(product_id):
     except sqlite3.Error as e:
         return jsonify({"error": str(e)}), 500
 
-# In app.py
+# One-time route to create an admin user (for development/testing only)
 @app.route('/create_admin')
 def create_admin():
     from werkzeug.security import generate_password_hash
@@ -267,6 +282,7 @@ def create_admin():
 
     return "Admin user created. Email: admin2@example.com, Password: adminpass"
 
+# Get all conventions for a product
 @app.route('/product/<int:product_id>/conventions')
 def get_product_conventions(product_id):
     conn = sqlite3.connect('convention_clothing_catalogue.db')
@@ -284,7 +300,7 @@ def get_product_conventions(product_id):
 
     return jsonify(conventions)
 
-
+# View wishlist items for the current user
 @app.route('/wishlist')
 @login_required
 def view_wishlist():
@@ -306,7 +322,7 @@ def view_wishlist():
 
     return render_template('wishlist.html', wishlist_items=wishlist_items)
 
-
+# Remove an item from the wishlist
 @app.route('/wishlist/delete/<int:product_id>', methods=['POST'])
 @login_required
 def delete_from_wishlist(product_id):
@@ -319,6 +335,7 @@ def delete_from_wishlist(product_id):
 
     return redirect(url_for('view_wishlist'))
 
+# Get all unique convention names
 @app.route('/conventions')
 def get_conventions():
     conn = sqlite3.connect('convention_clothing_catalogue.db')
@@ -331,6 +348,7 @@ def get_conventions():
 
     return jsonify(conventions)
 
+# Admin panel for managing products
 @app.route('/admin/products/edit/<int:product_id>', methods=['GET', 'POST'])
 @login_required
 def edit_product(product_id):
@@ -370,6 +388,7 @@ def edit_product(product_id):
 
     return render_template('edit_product.html', product=product_dict)
 
+# Delete a convention and its associations
 @app.route('/admin/conventions', methods=['GET', 'POST'])
 @login_required
 def manage_conventions():

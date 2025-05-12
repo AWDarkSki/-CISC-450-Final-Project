@@ -1,24 +1,28 @@
-document.getElementById('search-bar').addEventListener('input', filterProducts);
+// Add event listeners to filter inputs; triggers filtering whenever any of them change or are updated
+document.getElementById('search-bar').addEventListener('input', filterProducts);document.getElementById('search-bar').addEventListener('input', filterProducts);
 document.getElementById('category-filter').addEventListener('change', filterProducts);
 document.getElementById('size-filter').addEventListener('change', filterProducts);
 document.getElementById('convention-filter').addEventListener('change', filterProducts);
 
+// Function to fetch and display products based on current filter values
 function filterProducts() {
     const category = document.getElementById('category-filter').value;
     const size = document.getElementById('size-filter').value;
     const search = document.getElementById('search-bar').value;
     const convention = document.getElementById('convention-filter').value;
 
+    // Send filter data to the server and get matching product list
     fetch(`/data?category=${category}&size=${size}&search=${encodeURIComponent(search)}&convention=${encodeURIComponent(convention)}`)
         .then(response => response.json())
         .then(data => {
-            displayProducts(data);
+            displayProducts(data);  // Render filtered product data
         });
 }
 
+// Render product data into the table
 function displayProducts(data) {
     const table = document.getElementById('data-table');
-    table.innerHTML = '';
+    table.innerHTML = '';   // Clear any previous results
 
     data.forEach(product => {
         const tr = document.createElement('tr');
@@ -28,10 +32,11 @@ function displayProducts(data) {
             <td>$${product.price.toFixed(2)}</td>
             <td><button onclick="addToWishlist(${product.product_id})">Add to Wishlist</button></td>
         `;
-        table.appendChild(tr);
+        table.appendChild(tr);  // Add the new row to the table
     });
 }
 
+// Show product details in a modal with additional convention info
 function showProductDetail(id, name, image, description, price, category, size, stock) {
     document.getElementById('detail-name').textContent = name;
     document.getElementById('detail-image').src = image;
@@ -41,27 +46,31 @@ function showProductDetail(id, name, image, description, price, category, size, 
     document.getElementById('detail-size').textContent = size;
     document.getElementById('detail-stock').textContent = stock;
 
+    // Fetch and display list of conventions where this product is available
     fetch(`/product/${id}/conventions`)
         .then(response => response.json())
         .then(conventions => {
             const display = conventions.length ? conventions.join(', ') : 'None listed';
             document.getElementById('detail-conventions').textContent = display;
         });
-
+    // Show modal
     document.getElementById('product-detail').style.display = 'block';
     document.getElementById('modal-overlay').style.display = 'block';
 }
 
+// Close the product detail modal
 function closeDetail() {
     document.getElementById('product-detail').style.display = 'none';
     document.getElementById('modal-overlay').style.display = 'none';
 }
 
+// Add a product to the wishlist using a POST request
 function addToWishlist(productId) {
     fetch(`/wishlist/add/${productId}`, { method: 'POST' })
         .then(() => alert('Added to wishlist!'));
 }
 
+// Load convention filter options from the server and populate the dropdown
 function loadConventions() {
     fetch('/conventions')
         .then(response => response.json())
