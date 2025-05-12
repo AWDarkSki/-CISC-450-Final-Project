@@ -1,3 +1,14 @@
+INSTALLATION GUIDE:
+	1: Clone the repository
+		git clone https://github.com/AWDarkSki/-CISC-450-Final-Project
+		cd -CISC-450-Final-Project
+	2: Install requirements
+		pip install -r requirements.txt
+	3: Create .env file with secret key (FILE MUST BE NAMED ".env")
+		Example: SECRET_KEY=my_very_secret_key
+	4: Run application by running app.py
+		Visit http://127.0.0.1:5000 in your browser.
+	
 TEST ACCOUNTS: (email - password)
 
 admin2@example.com - adminpass

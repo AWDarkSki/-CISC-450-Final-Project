@@ -4,7 +4,6 @@ import sqlite3
 from werkzeug.security import generate_password_hash, check_password_hash
 from dotenv import load_dotenv
 import os
-from flask_wtf import CSRFProtect
 
 app = Flask(__name__)
 
